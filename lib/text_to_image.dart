@@ -1,30 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:stability_image_generation/stability_image_generation.dart';
-
-class TextToImageService {
-  final StabilityAI _ai = StabilityAI();
-  final String apiKey;
-  final ImageAIStyle imageAIStyle;
-
-  TextToImageService({
-    required this.apiKey,
-    this.imageAIStyle = ImageAIStyle.digitalPainting,
-  });
-
-  Future<Uint8List> generateImage(String query) async {
-    return await _ai.generateImage(
-      apiKey: apiKey,
-      imageAIStyle: imageAIStyle,
-      prompt: query,
-    );
-  }
-}
+import '../services/text_to_image_service.dart';
 
 class AiTextToImageGenerator extends StatefulWidget {
-  final TextToImageService textToImageService;
-
-  const AiTextToImageGenerator({super.key, required this.textToImageService});
+  const AiTextToImageGenerator({super.key});
 
   @override
   State<AiTextToImageGenerator> createState() => _AiTextToImageGeneratorState();
@@ -33,6 +12,13 @@ class AiTextToImageGenerator extends StatefulWidget {
 class _AiTextToImageGeneratorState extends State<AiTextToImageGenerator> {
   final TextEditingController _queryController = TextEditingController();
   bool isItems = false;
+  late final TextToImageService textToImageService;
+
+  @override
+  void initState() {
+    super.initState();
+    textToImageService = TextToImageService();
+  }
 
   @override
   void dispose() {
@@ -41,95 +27,126 @@ class _AiTextToImageGeneratorState extends State<AiTextToImageGenerator> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
+    final gradientTextStyle = TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      foreground:
+          Paint()
+            ..shader = const LinearGradient(
+              colors: <Color>[Colors.red, Colors.purple],
+            ).createShader(const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
+    );
     return Scaffold(
-      backgroundColor: Colors.blue[100],
+      backgroundColor: Colors.black,
       resizeToAvoidBottomInset:
-          false, // Klavye açıldığında yeniden boyutlandırmayı kapat
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(
-            context,
-          ).unfocus(); // Klavyeyi kapatmak için ekrana tıklamayı etkinleştir
-        },
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const SizedBox(
-                  height: 20,
-                ), // UI'nın kırılmasını önlemek için boşluk
-                const Text("Text to Image", style: TextStyle(fontSize: 30)),
-                Container(
-                  width: double.infinity,
-                  height: 55,
-                  margin: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.white,
+          false, // Klavye açıldığında UI yeniden boyutlanmasın
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        centerTitle: true,
+        title: Text("AI Image Creator", style: gradientTextStyle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            // TextField en üstte
+            Container(
+              width: double.infinity,
+              height: 80,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.purple, width: 2),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black,
+              ),
+              child: TextField(
+                controller: _queryController,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Put Your Imagination in Writing',
+                  hintStyle: TextStyle(
+                    color: Colors.grey,
+                    fontStyle: FontStyle.italic,
                   ),
-                  child: TextField(
-                    controller: _queryController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter your prompt',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.only(left: 15, top: 5),
-                    ),
-                  ),
+                  border: InputBorder.none,
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child:
-                      isItems
-                          ? FutureBuilder<Uint8List>(
-                            future: widget.textToImageService.generateImage(
-                              _queryController.text,
-                            ),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              } else if (snapshot.hasData) {
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.memory(snapshot.data!),
-                                );
-                              } else {
-                                return const Center(
-                                  child: Text('Failed to generate image'),
-                                );
-                              }
-                            },
-                          )
-                          : const Center(
-                            child: Text(
-                              'No image generated yet',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_queryController.text.isNotEmpty) {
-                      setState(() {
-                        isItems = true;
-                      });
-                    }
-                  },
-                  child: const Text("Generate Image"),
-                ),
-                const SizedBox(height: 30), // Alt tarafta biraz boşluk bırak
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 30),
+            // Üretilen resim ortada görüntülenecek
+            Expanded(
+              child: Center(
+                child:
+                    isItems
+                        ? FutureBuilder<Uint8List>(
+                          future: textToImageService.generateImage(
+                            _queryController.text,
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            } else if (snapshot.hasData) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.memory(snapshot.data!),
+                              );
+                            } else {
+                              return const Center(
+                                child: Text(
+                                  'Failed to generate image',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }
+                          },
+                        )
+                        : const SizedBox(),
+              ),
+            ),
+            // Buton merkeze hizalanmış
+            ElevatedButton(
+              onPressed: () {
+                if (_queryController.text.isNotEmpty) {
+                  setState(() {
+                    isItems = true;
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 40,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    "Imagine",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
         ),
       ),
     );
