@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       home: AiTextToImageGenerator(
         textToImageService: TextToImageService(
-          apiKey: 'sk-fj8aMPYtOiIW5tSW1rhTKSYeomP28x3T0nBqNNfIdP8sIge1',
+          apiKey: 'sk-LmT6tmOM2gCMC4N4BoxDTx2gDtG5SMuUHYMhy6k7EgURr5VW',
         ),
       ),
     );
